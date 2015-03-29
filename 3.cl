@@ -17,9 +17,11 @@
 (make-book "All's Quiet on the Western Front" "Remarque" 1929 nil)
 
 (defvar *db* nil)
-(defun add-record (book) (push book *db*))
+(defun add-record (book)
+  (push book *db*))
+
 ;; Push adds a record into *db* 
-(add-record (make-book "All's Quiet on the Western Front" "Remarque" 1929 nil))
+(add-record (make-book "All Quiet on the Western Front" "Remarque" 1929 nil))
 (add-record (make-book "The Trial" "Kafka" 1925 nil))
 (add-record (make-book "Faust" "Goethe" 1808 t))
 (print *db*)
@@ -46,5 +48,104 @@
   (make-book
   	(prompt-read "Title")
   	(prompt-read "Author")
-  	(prompt-read "Year")
-  	(prompt-read "Ebook? [y/n]")))
+  	(or (parse-integer (prompt-read "Year") :junk-allowed t) 0)
+  	(y-or-n-p "Is this an Ebook? [y/n]"))) ;; Yes, this will totally handle the prompting and parsing of y/n answer!
+
+;; PROMPT-READ will let you take anything from user input.
+;; But using PARSE-INTEGER will coerce it into an integer, as will be useful for the "year" field.
+;; :junk-allowed argument loosens PARSE-INTEGER's constraint, and if that's still not enough, you can or it and defaul it to zero
+;;
+
+(defun add-books ()
+  (loop (add-record (prompt-for-book))
+  		(if (not (y-or-n-p "Add another?"))
+  		  (return))))
+;(format t "~%Add the name of your book:~%")
+;(add-books)
+
+;; === Saving and Loading Database ===
+
+(defun save-db (filename)
+  (with-open-file (out filename
+  					   :direction :output
+  					   :if-exists :supersede)
+  	(with-standard-io-syntax
+  	  (print *db* out))))
+;; WITH-OPEN-FILE is a macro. It opens a file, binds stream to variable, executes expressions then closes file
+;; You run (print *db* out) to save the database.
+;; **PRINT prints Lisp objects in a form that can be read by Lisp. WITH-STANDARD-IO-SYNTAX ensures variables that affect behavior of PRINT are set to standard values
+;; Same macro used to read datab back in 
+
+(save-db "./my-books.db")
+
+;; Loading the database
+
+(defun load-db (filename)
+  (with-open-file (in filename)
+  	(with-standard-io-syntax
+  	  (setf *db* (read in))))) ;; setf updates value of a var already created
+
+;; SELECTing from database
+(loop for i from 1 to 20 collecting i)
+
+(remove-if-not #'evenp '(1 2 3 4 5 6)) ;; Returns a new list with the odd numbers stripped.
+
+;; May also pass remove-if-not an anonymous function
+(remove-if-not #'(lambda (x)
+				   (= 0 (mod x 2)))
+			   '(1 2 3 4 5 6 7 8 9 10))
+
+(defun select-by-author (author)
+  (remove-if-not
+  	#'(lambda (book)
+  		(equal (getf book :author) author))
+  	*db*))
+
+;; We coulse add more select statements per author, but its better to make it more general. Here we pass SELECT a function, much like a decoratorin Python
+
+(defun select (selector-fn)
+  (remove-if-not selector-fn *db*))
+
+(defun author-selector (author)
+  #'(lambda (book) (equal (getf book :author) author)))
+
+;; We will make select even more generizable by sending it keyword arguments.
+;; First we will review how kwargs work in Lisp
+
+(defun foo (&key a b c) ;; Note &key at the beginning of the argument list
+  (list a b c))
+	;; call this like so:
+(foo :a 3 :c 'Yes :b "My string")
+	;; If you call the function without specifying arguments, it will return nil
+(foo :a 1)
+	;; Default args work like this:
+(defun foo-bar (&key a (b 20) (c 30 c-p))
+  (list a b c c-p))
+	;; c-p is a `supplied-p` parameter. Will be set to true or false whether an argumnet was actually passed for that keyword or not
+	;; If yes, it returns the value and True, if no, it returns 30 and Nil
+
+(defun where (&key title author year (ebook nil ebook-p))
+  #'(lambda (book)
+  	  (and	;; uses the logical AND of the result of our select statement
+  	  	(if title	(equal (getf book :title)	title)	t)
+  	  	(if author	(equal (getf book :author)	author)	t)
+  	  	(if year	(equal (getf book :year)	year)	t)
+  	  	(if ebook	(equal (getf book :ebook)	ebook)	t))))
+
+(print (select (where :author "Kafka")))
+
+;; Updating records
+(defun update (selector-fn &key title author year (ebook nil ebook-p))
+  (setf *db*
+  		(mapcar
+  		  #'(lambda (row)
+  		  	  (when (funcall selector-fn row)
+  		  	  	(if title	(setf (getf row :title) title))
+  		  	  	(if author	(setf (getf row :author) author))
+  		  	  	(if year	(setf (getf row :year) year))
+  		  	  	(if ebook-p	(setf (getf row :ebook) ebook)))
+  		  	  row) *db)))
+
+;; Deleting
+(defun delete-rows (selector-fn)
+    (setf *db* (remove-if selector-fn *db*)))
