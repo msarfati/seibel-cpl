@@ -124,15 +124,15 @@
 	;; c-p is a `supplied-p` parameter. Will be set to true or false whether an argumnet was actually passed for that keyword or not
 	;; If yes, it returns the value and True, if no, it returns 30 and Nil
 
-(defun where (&key title author year (ebook nil ebook-p))
-  #'(lambda (book)
-  	  (and	;; uses the logical AND of the result of our select statement
-  	  	(if title	(equal (getf book :title)	title)	t)
-  	  	(if author	(equal (getf book :author)	author)	t)
-  	  	(if year	(equal (getf book :year)	year)	t)
-  	  	(if ebook	(equal (getf book :ebook)	ebook)	t))))
+; (defun where (&key title author year (ebook nil ebook-p))
+;   #'(lambda (book)
+;   	  (and	;; uses the logical AND of the result of our select statement
+;   	  	(if title	(equal (getf book :title)	title)	t)
+;   	  	(if author	(equal (getf book :author)	author)	t)
+;   	  	(if year	(equal (getf book :year)	year)	t)
+;   	  	(if ebook	(equal (getf book :ebook)	ebook)	t))))
 
-(print (select (where :author "Kafka")))
+; (print (select (where :author "Kafka")))
 
 ;; Updating records
 (defun update (selector-fn &key title author year (ebook nil ebook-p))
@@ -149,3 +149,37 @@
 ;; Deleting
 (defun delete-rows (selector-fn)
     (setf *db* (remove-if selector-fn *db*)))
+
+;;;;; Macros ;;;;;;;;
+;; Once called, the Lisp compiler passes the arguments unevaluated to the macro,
+;; which inturn returns new a Lisp evaluated expression in place of the original
+;; macro.
+
+(defmacro backwards (expr)
+  (reverse expr))
+
+(backwards "my string")
+
+;; (defun make-comparison-expr (field value)
+;;   (list 'equal (list 'getf 'book field) value))
+
+;; Even better, making use of the backtick
+;; Backtick passes everything as data, except objects prefixed with ,
+;; as in teh case bellow with ,field and ,value
+(defun make-comparison-expr (field value)
+  `(equal (getf book ,field) ,value))
+
+;; Towards a new and improved where
+
+(defun make-comparisons-list (fields)
+  (loop while fields
+  		collecting (make-comparison-expr (pop fields) (pop fields))))
+
+(defmacro where (&rest clauses)
+  `#'(lambda (book) (and ,@(make-comparisons-list clauses))))
+
+;; in the context of ` ,@ "splices" the value, eg, returns everything within a collection
+;; as its own unique entry to the as-data
+;;
+;; &rest modifies the way arguments are passed, like &key
+;; &rest takes an arbitrary number of arguments
