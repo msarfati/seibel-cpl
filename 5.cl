@@ -1,10 +1,10 @@
-;;;; Functions
+;;;; # Functions
 ;;;
 ;;; Three most basic components of all Lisp programs:
 ;;; functions, variables, macros.
 ;;; Lisp isn't a pure functional language -- Common Lisp was designed to support a variety of styles. Scheme is the closest to pure functional, but still falls short. True pure functional languages include Haskell and ML.
-;;; 
-;;; :: Defining New Functions:: 
+;;;
+;;; ## Defining New Functions
 ;;; Skel:
 
 ;;; (defun name (parameter*)
@@ -13,7 +13,7 @@
 
 ;;; Any symbol is usable as function name. Usually contain letters and hyphens, but other chars are allowed by convention.
 ;;; -> means convert, eg, string->widget
-;;; 
+;;;
 ;;; use hyphens, not underscores or inner caps
 ;;;
 ;;; Parameter lists are also called *lambda lists*
@@ -60,6 +60,18 @@
 (defun my-rectangle (width &optional (height width)) ; Height param would be the same as the width param
   (* height width))
 
+;;; You can find out if the value to the optional argument was provided by caller or is the default value:
+
+(defun my-foo-three (a &optional (b 99 b-supplied-p))
+  (list a b b-supplied-p)) ; b-supplied-p will return a boolean value
+
+;;; :: Rest Parameters ::
+;;; Takes arbitrary number of arguments
+(defun my-rest (&rest value)
+  (list value))
+
+(princ (my-rest 5 4 3 5 'this "some string" 'more-data))
+;;;
 ;;; Review of Keyword arguments
 (defun my-month (&key month (days 30))
   "Returns pretty format of month. Requires month and day-count"
@@ -67,9 +79,30 @@
 
 (my-month :month "Hexembruary" :days 45)
 
-;;; You can find out if the value to the optional argument was provided by caller or is the default value:
+;;; Both &optional and &rest are positional, unlike &key
 
-(defun my-foo-three (a &optional (b 99 b-supplied-p))
-  (list a b b-supplied-p)) ; b-supplied-p will return a boolean value
-
-;;; :: Rest Parameters ::
+;;; Mixing different parameter types
+;;; All four arg techniques -- &rest, &optional, &key -- and regular
+;;; to be used.
+;;; combining &OPTIONAL and &REST is good, but using any of these with
+;;; &KEY can lead to unexpected behavior
+;;;
+;;; ## Function Return Values
+;;; All functions covered hitherto evaluate to their last return value
+;;; But, you can return early and quit out of a function using RETURN-FROM
+;;; RETURN-FROM isn't tied to functions, it just returns from a block of code
+;;; defined with the BLOCK operator
+;;; But, DEFUN automatically wraps the whole function in a block, using
+;;; name of the function
+;;;
+;;; RETURN-FROM can be used to prematurely exit a function, as in the case
+;;; of a loop.
+;;;
+;;; ## Functions as Data (AKA higher-order functions)
+;;; Eg: if you pass a function as an argumen to another func,
+;;; you can write a general-purpose sorting func, while allowing
+;;; caller to provide a function that's responsible for comparing two elems
+;;; And this same algorithm can be used with many comparitors
+;;;
+;;; funcs are just another kind of object. DEFUN is really instantiating a function object with
+;;; a name -- you can make nameless functions (LAMBDA)
